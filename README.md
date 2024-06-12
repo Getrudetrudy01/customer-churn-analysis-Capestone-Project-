@@ -1,5 +1,6 @@
 # Customer Churn Prediction Capstone Project
 
+
 This repository contains the code and dataset for the Customer Churn Prediction Capstone Project. The goal of this project is to develop a machine learning model that can predict customer churn in a telecom company.
 
 ## Project Overview
