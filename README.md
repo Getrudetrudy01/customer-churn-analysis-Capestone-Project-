@@ -1,54 +1,186 @@
-# Customer Churn Prediction Capstone Project
+# Customer Churn Prediction - Telecom Industry
+
+A comprehensive machine learning project for predicting customer churn in the telecom industry, featuring advanced ML algorithms, model explainability with SHAP, and an interactive Streamlit dashboard for business insights.
 
 
-This repository contains the code and dataset for the Customer Churn Prediction Capstone Project. The goal of this project is to develop a machine learning model that can predict customer churn in a telecom company.
+## Table of Contents
 
-## Project Overview
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Technologies Used](#technologies-used)
+- [Installation](#installation)
+- [Dashboard Preview](#dashboard-preview)
+- [Notebooks](#notebooks)
 
-Customer churn refers to the phenomenon where customers discontinue using a company's products or services. It is a significant challenge for businesses, as losing customers can have a negative impact on revenue and growth. The Customer Churn Prediction Capstone Project aims to address this issue by building a predictive model that can identify customers who are likely to churn.
 
-The project involves the following steps:
+---
 
-1. **Data Collection**: The `telecom_churn.csv` dataset is used for training and evaluating the churn prediction model. This dataset contains various features related to customer behavior, usage patterns, and demographics.
+## Overview
 
-2. **Data Preprocessing**: The data is cleaned and preprocessed to handle missing values, encode categorical variables, and normalize numerical features. This ensures that the data is in a suitable format for training the machine learning model.
+Customer churn (customer attrition) is a critical business metric that directly impacts revenue and growth. This project leverages machine learning to predict which customers are likely to churn, enabling proactive retention strategies.
 
-3. **Feature Selection/Engineering**: Relevant features are selected or engineered to improve the model's performance. This step involves analyzing the dataset, identifying informative features, and creating new features if necessary.
+### Problem Statement
 
-4. **Model Training**: Machine learning algorithms such as logistic regression, decision trees, or random forests are used to train a churn prediction model on the labeled dataset. The model learns patterns and relationships between the features and customer churn.
+Telecom companies face significant challenges with customer retention. The cost of acquiring new customers is typically 5-7 times higher than retaining existing ones. This project aims to:
 
-5. **Model Evaluation**: The performance of the trained model is assessed using appropriate evaluation metrics such as accuracy, precision, recall, and F1 score. This step helps determine how well the model predicts customer churn.
+- **Identify** customers at risk of churning
+- **Understand** key factors driving churn
+- **Provide** actionable insights for retention strategies
+- **Quantify** business impact and ROI of retention efforts
 
-6. **Prediction**: The trained model can be utilized to make predictions on new, unseen data. This allows businesses to identify customers who are at a higher risk of churn and take proactive measures to retain them.
+### Solution
 
-## Repository Files
+We developed an end-to-end machine learning pipeline that:
+1. Processes and analyzes customer data
+2. Engineers relevant features for prediction
+3. Trains and evaluates multiple ML models
+4. Provides model explainability using SHAP
+5. Delivers predictions through an interactive dashboard
 
-The repository includes the following files:
+---
 
-1. `customer_churn_prediction.ipynb`: Jupyter Notebook containing the implementation of the customer churn prediction model. This notebook provides step-by-step instructions and explanations of the data preprocessing, feature selection/engineering, model training, model evaluation, and churn prediction.
+## Key Features
 
-2. `telecom_churn.csv`: CSV file containing the customer churn dataset used for training and evaluating the churn prediction model. The file includes information about customer behavior, usage patterns, demographics, and churn status.
+### Machine Learning
+- **8 ML Algorithms**: Logistic Regression, Decision Tree, Random Forest, Gradient Boosting, XGBoost, LightGBM, SVM, KNN
+- **Hyperparameter Tuning**: GridSearchCV and RandomizedSearchCV
+- **Cross-Validation**: 5-fold stratified cross-validation
+- **Model Explainability**: SHAP (SHapley Additive exPlanations) values
+- **Feature Engineering**: Advanced feature creation and selection
 
-## How to Use
+### Data Analysis
+- Comprehensive exploratory data analysis (EDA)
+- Advanced visualizations with Matplotlib, Seaborn, and Plotly
+- Correlation analysis and feature importance
+- Business impact analysis
 
-To use this project and train a customer churn prediction model, follow these steps:
+### Interactive Dashboard
+- **Real-time Predictions**: Individual customer churn probability
+- **Data Exploration**: Interactive visualizations
+- **Model Performance**: Detailed metrics and comparisons
+- **Business Insights**: ROI calculations and recommendations
+- **Risk Assessment**: Customer segmentation by churn risk
 
-1. Clone the repository to your local machine using the following command:
+### Production-Ready Code
+- Modular, reusable Python modules
+- Comprehensive documentation
+- Unit tests (framework ready)
+- Configuration management
+- Error handling and logging
+
+
+## Technologies Used
+
+### Core Technologies
+- **Python 3.11+**: Programming language
+- **Pandas**: Data manipulation
+- **NumPy**: Numerical computing
+- **Scikit-learn**: Machine learning framework
+
+### Advanced ML
+- **XGBoost**: Gradient boosting framework
+- **LightGBM**: Fast gradient boosting
+- **SHAP**: Model interpretability
+
+### Visualization
+- **Matplotlib**: Static plotting
+- **Seaborn**: Statistical visualizations
+- **Plotly**: Interactive charts
+
+### Web Framework
+- **Streamlit**: Interactive dashboard
+
+### Development Tools
+- **Jupyter**: Notebook environment
+- **Git**: Version control
+- **Virtual Environment**: Dependency isolation
+
+---
+
+## Installation
+
+### Prerequisites
+- Python 3.11 or higher
+- pip package manager
+- Git
+
+### Setup Instructions
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/Getrudetrudy01/customer-churn-analysis-Capestone-Project-.git
+   cd customer-churn-analysis-Capestone-Project-
    ```
-   git clone https://github.com/getrudetrudy01/customer-churn-prediction.git
+
+2. **Create Virtual Environment**
+   ```bash
+   # Windows
+   python -m venv .venv
+   .venv\Scripts\activate
+
+   # macOS/Linux
+   python3 -m venv .venv
+   source .venv/bin/activate
    ```
 
-2. Open the `customer_churn_prediction.ipynb` Jupyter Notebook using Jupyter Notebook or JupyterLab.
+3. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3. Follow the instructions in the notebook to execute the code cells and train the churn prediction model.
+4. **Verify Installation**
+   ```bash
+   python -c "import sklearn; import xgboost; import lightgbm; import streamlit; print('All packages installed successfully!')"
+   ```
 
-4. If you want to use the trained model for prediction on new data, make sure to have the necessary input data in a similar format as the `telecom_churn.csv` file. You can load the trained model from the notebook and apply it to the new data to predict customer churn.
 
-## Conclusion
+## Dashboard Preview
 
-The Customer Churn Prediction Capstone Project demonstrates the application of machine learning techniques to predict customer churn in a telecom company. By training a model on a labeled dataset, the project aims to develop a churn prediction model that can help businesses identify customers who are at a higher risk of churn. The Jupyter Notebook provided allows for an interactive and flexible environment to explore, develop, and enhance the churn prediction process.
+### Home Page
+- Project overview and key metrics
+- Quick navigation to all features
 
-## Contributing
+### Data Exploration
+- Interactive visualizations
+- Statistical summaries
+- Feature distributions by churn status
 
-Pull requests and contributions to enhance the project are welcome. Feel free to submit suggestions, bug reports, or improvements.
+### Model Performance
+- Model comparison charts
+- Detailed performance metrics
+- Best model insights
+
+### Customer Prediction
+- Real-time churn probability prediction
+- Risk level assessment
+- Personalized retention recommendations
+
+### Business Impact
+- ROI calculator
+- Financial impact analysis
+- Cost-benefit visualizations
+
+---
+
+## Notebooks
+
+### 01_exploratory_data_analysis.ipynb
+- Dataset overview and quality assessment
+- Univariate, bivariate, and multivariate analysis
+- Correlation analysis
+- Key insights and findings
+
+### 02_feature_engineering.ipynb
+- Data cleaning and transformation
+- Feature creation (tenure groups, service count, etc.)
+- Feature encoding and scaling
+- Feature selection and importance
+
+### 03_modeling.ipynb
+- Multiple model training
+- Hyperparameter tuning
+- Model evaluation and comparison
+- SHAP explainability analysis
+- Business impact calculation
+
 

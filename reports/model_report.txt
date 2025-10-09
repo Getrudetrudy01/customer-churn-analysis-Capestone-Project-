@@ -1,0 +1,42 @@
+================================================================================
+CUSTOMER CHURN PREDICTION - MODEL REPORT
+================================================================================
+
+MODEL PERFORMANCE COMPARISON
+--------------------------------------------------------------------------------
+              model  accuracy  precision   recall  f1_score  roc_auc  cv_mean   cv_std
+            XGBoost     0.973   1.000000 0.813793  0.897338 0.912410 0.978998 0.009323
+           LightGBM     0.970   0.967480 0.820690  0.888060 0.911490 0.977713 0.010540
+  Gradient Boosting     0.969   0.967213 0.813793  0.883895 0.902154 0.975141 0.010276
+      Random Forest     0.960   1.000000 0.724138  0.840000 0.916882 0.967858 0.008865
+      Decision Tree     0.952   0.864662 0.793103  0.827338 0.886025 0.955852 0.003721
+                SVM     0.898   0.877193 0.344828  0.495050 0.879080 0.885556 0.006715
+Logistic Regression     0.879   0.630435 0.400000  0.489451 0.803541 0.873983 0.004740
+                KNN     0.862   0.606061 0.137931  0.224719 0.708917 0.856832 0.005082
+
+==================================================
+BUSINESS IMPACT METRICS
+==================================================
+
+Confusion Matrix Results:
+  [+] True Positives (Correctly identified churners): 118
+  [-] False Positives (False alarms): 0
+  [!] False Negatives (Missed churners): 27
+  [*] True Negatives (Correctly identified non-churners): 855
+
+Financial Impact:
+  Cost of Missed Churners: $27,000.00
+  Cost of Retention Efforts: $11,800.00
+  Value of Retained Customers: $106,200.00
+  Net Benefit: $67,400.00
+  ROI: 571.19%
+
+==================================================
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+1. Deploy XGBoost for production use
+2. Focus retention efforts on high-risk customers (probability > 0.6)
+3. Monitor model performance monthly and retrain as needed
+4. Implement A/B testing to validate retention strategies
