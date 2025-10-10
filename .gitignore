@@ -49,6 +49,8 @@ Thumbs.db
 *.csv
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/raw/telecom_churn.csv
+!data/processed/processed_churn.csv
 
 # Models (large files)
 *.pkl
