@@ -59,6 +59,8 @@ Thumbs.db
 *.pt
 *.pth
 !models/.gitkeep
+!models/best_model.pkl
+!models/scaler.pkl
 
 # Reports
 *.pdf
