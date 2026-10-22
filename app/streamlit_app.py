@@ -174,11 +174,11 @@ def show_data_exploration():
 
     # Data preview
     st.subheader("Data Sample")
-    st.dataframe(df.head(100), use_container_width=True)
+    st.dataframe(df.head(100), width='stretch')
 
     # Statistical summary
     st.subheader("Statistical Summary")
-    st.dataframe(df.describe(), use_container_width=True)
+    st.dataframe(df.describe(), width='stretch')
 
     # Churn distribution
     st.subheader("Churn Distribution")
@@ -196,7 +196,7 @@ def show_data_exploration():
             font=dict(family="Poppins, sans-serif", size=14),
             title_font=dict(size=20, color='#14b8a6', family="Poppins")
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         fig = px.bar(
@@ -211,7 +211,7 @@ def show_data_exploration():
             font=dict(family="Poppins, sans-serif", size=14),
             title_font=dict(size=20, color='#14b8a6', family="Poppins")
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Feature analysis
     st.subheader("Feature Analysis")
@@ -238,7 +238,7 @@ def show_data_exploration():
                 font=dict(family="Poppins, sans-serif", size=14),
                 title_font=dict(size=20, color='#14b8a6', family="Poppins")
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         with col2:
             fig = px.box(
@@ -251,7 +251,7 @@ def show_data_exploration():
                 font=dict(family="Poppins, sans-serif", size=14),
                 title_font=dict(size=20, color='#14b8a6', family="Poppins")
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     else:
         # Categorical feature analysis
         churn_by_feature = pd.crosstab(df[feature], df['Churn'], normalize='index') * 100
@@ -262,7 +262,7 @@ def show_data_exploration():
             labels={'value': 'Percentage (%)', 'variable': 'Churn Status'},
             barmode='group'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 
 def show_model_performance():
@@ -296,7 +296,7 @@ def show_model_performance():
                f"measured on a held-out test set of {metrics['test_size']:,} customers at a 0.5 threshold.")
     metric_columns = ['CV PR-AUC', 'PR-AUC', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC']
     st.dataframe(results_df.style.highlight_max(axis=0, subset=metric_columns),
-                 use_container_width=True)
+                 width='stretch')
 
     # Visualize metrics
     st.subheader("Performance Metrics Comparison")
@@ -317,7 +317,7 @@ def show_model_performance():
         font=dict(family="Poppins, sans-serif", size=14),
         title_font=dict(size=20, color='#14b8a6', family="Poppins")
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Best model details
     final = metrics['final_model']
@@ -471,7 +471,7 @@ def show_customer_prediction():
                 }
             }
         ))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         st.caption(f"The red line marks the model's decision threshold ({threshold:.0%}). "
                    "Customers at or above it are flagged for retention.")
 
@@ -603,7 +603,7 @@ def show_business_impact():
                    marker_color=['#14b8a6', 'lightsalmon', 'indianred'])
         ])
         fig.update_layout(title='Outcome for Actual Churners', yaxis_title='Customers')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         # ROI waterfall
@@ -614,7 +614,7 @@ def show_business_impact():
             connector={"line": {"color": "rgb(63, 63, 63)"}},
         ))
         fig.update_layout(title='ROI Waterfall', yaxis_title='Amount ($)')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Success rate at which the campaign pays for itself
     break_even_rate = impact['cost_of_retention'] / (tp * avg_customer_value) if tp > 0 else float('inf')
@@ -641,7 +641,7 @@ def main():
     """Main application."""
     # Sidebar
     with st.sidebar:
-        st.image("app/assets/CustomerDesign.png", width=80)
+        st.image(str(project_root / "app" / "assets" / "CustomerDesign.png"), width=80)
         st.title("Navigation")
 
         page = st.radio(

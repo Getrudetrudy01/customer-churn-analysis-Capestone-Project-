@@ -44,7 +44,7 @@ def explain_model_shap(
     try:
         # For tree-based models
         explainer = shap.TreeExplainer(model)
-    except:
+    except Exception:
         # For other models
         explainer = shap.Explainer(model, X_train)
 

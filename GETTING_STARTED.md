@@ -2,108 +2,70 @@
 
 ## Quick Start (5 Minutes)
 
-### Step 1: Activate Virtual Environment
+### Step 1: Set Up the Environment
 ```bash
-# You already have this activated!
+python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
+pip install -r requirements-dev.txt
 ```
 
-### Step 2: Explore the Data
-```bash
-jupyter notebook notebooks/01_exploratory_data_analysis.ipynb
-```
-
-### Step 3: Run the Complete Pipeline
-```bash
-jupyter notebook notebooks/02_feature_engineering.ipynb
-jupyter notebook notebooks/03_modeling.ipynb
-```
-
-### Step 4: Launch the Dashboard
+### Step 2: Launch the Dashboard
+The trained model is already in `models/`, so the dashboard works right away:
 ```bash
 streamlit run app/streamlit_app.py
 ```
 
+### Step 3: Explore the Notebooks
+```bash
+jupyter notebook notebooks/01_exploratory_data_analysis.ipynb
+jupyter notebook notebooks/02_feature_engineering.ipynb
+jupyter notebook notebooks/03_modeling.ipynb
+```
+
+### Step 4: Retrain and Test
+```bash
+python -m src.model_training   # retrain; updates the model, dashboard metrics and report
+pytest                         # check everything still works
+```
+
 ---
 
-## 📚 What You've Built
+## 📚 What's in the Project
 
-### ✅ Professional Structure
+### Structure
 ```
 ✓ data/raw/ - Original dataset
-✓ data/processed/ - Cleaned data
-✓ notebooks/ - 3 organized notebooks
-✓ src/ - 6 modular Python modules
-✓ app/ - Interactive Streamlit dashboard
-✓ models/ - Saved models directory
-✓ reports/ - Generated reports & figures
+✓ data/processed/ - Encoded data from notebook 02
+✓ notebooks/ - EDA, feature engineering, modeling
+✓ src/ - Preprocessing, training, utilities, plotting
+✓ app/ - Streamlit dashboard
+✓ models/ - Trained pipeline and its metrics
+✓ reports/ - Model report and figures
+✓ tests/ - Automated tests
 ```
 
-### ✅ Machine Learning Pipeline
+### Machine Learning Pipeline
 - **8 ML Algorithms**: Logistic Regression, SVM, Decision Tree, Random Forest, Gradient Boosting, XGBoost, LightGBM, KNN
-- **Hyperparameter Tuning**: RandomizedSearchCV for XGBoost & LightGBM
-- **Model Explainability**: SHAP values for feature importance
-- **Cross-Validation**: 5-fold stratified CV
-- **Business Metrics**: ROI, cost-benefit analysis
-
-### ✅ Interactive Dashboard
-- Real-time churn predictions
-- Data exploration with interactive charts
-- Model performance comparison
-- Business impact calculator
-- Customer risk assessment
-
-### ✅ Production-Ready Code
-- Modular, reusable functions
-- Comprehensive documentation
-- Configuration management
-- Error handling
-- Ready for deployment
-
----
-
-## 🎯 Recommended Workflow
-
-### For Learning & Understanding:
-1. **Read README.md** - Get full project overview
-2. **Run Notebook 01** - Understand the data
-3. **Run Notebook 02** - See feature engineering
-4. **Run Notebook 03** - Train models & evaluate
-5. **Launch Dashboard** - Interactive exploration
-
-### For Portfolio Presentation:
-1. **Update README.md** - Add your name, GitHub, LinkedIn
-2. **Run All Notebooks** - Generate fresh outputs
-3. **Take Screenshots** - Capture dashboard views
-4. **Record Demo** - Quick 2-3 minute walkthrough
-5. **Deploy** - (Optional) Deploy to Streamlit Cloud
-
-### For Further Development:
-1. **Add Unit Tests** - In tests/ directory
-2. **Hyperparameter Tuning** - Uncomment in notebook 03
-3. **Add More Models** - Extend model_training.py
-4. **Deploy API** - Build FastAPI endpoint
-5. **Docker** - Containerize the application
+- **One Pipeline per model**: preprocessing is fitted inside cross-validation, so nothing leaks from validation data
+- **Model selection**: 5-fold cross-validated PR-AUC on the training set
+- **Calibration and threshold tuning**: on out-of-fold training predictions
+- **Model Explainability**: permutation importance and SHAP
+- **Business Metrics**: net benefit and ROI of a retention campaign
 
 ---
 
 ## 📊 Expected Results
 
-### After Running Notebook 03:
-- **Best Model**: XGBoost (~80% accuracy)
-- **Saved Files**:
-  - `models/best_model.pkl`
-  - `models/scaler.pkl`
-  - `data/processed/processed_churn.csv`
-  - `reports/figures/` (multiple visualizations)
+### After Training (`python -m src.model_training` or notebook 03)
+- **Selected model**: LightGBM with calibrated probabilities (Gradient Boosting and XGBoost are effectively tied)
+- **Test set**: 96.8% precision, 82.8% recall, F1 0.892, PR-AUC 0.877
+- **Saved files**:
+  - `models/churn_pipeline.pkl`
+  - `models/metrics.json`
+  - `reports/model_report.txt`
 
-### Dashboard Features:
-- **Home**: Project overview
-- **Data Exploration**: Interactive EDA
-- **Model Performance**: Metrics comparison
-- **Customer Prediction**: Individual predictions
-- **Business Impact**: ROI calculator
+Training takes a few minutes without hyperparameter tuning.
 
 ---
 
@@ -111,32 +73,26 @@ streamlit run app/streamlit_app.py
 
 ### Issue: Import Errors
 ```bash
-# Ensure you're in project root
+# Run commands from the project root
 cd customer-churn-analysis-Capestone-Project-
 
 # Reinstall requirements
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
-### Issue: Data Not Found
+### Issue: Model Fails to Load After Upgrading Packages
+The saved model only loads reliably with the library versions in `requirements.txt`. After upgrading, retrain:
 ```bash
-# Verify data location
-ls data/raw/telecom_churn.csv
-
-# Should show: data/raw/telecom_churn.csv
+python -m src.model_training
 ```
 
 ### Issue: Model Not Found in Dashboard
 ```bash
-# Train models first
-jupyter notebook notebooks/03_modeling.ipynb
-
-# Run all cells to save best_model.pkl
+python -m src.model_training
 ```
 
 ### Issue: Streamlit Port Already in Use
 ```bash
-# Use different port
 streamlit run app/streamlit_app.py --server.port 8502
 ```
 
@@ -145,47 +101,20 @@ streamlit run app/streamlit_app.py --server.port 8502
 ## 💡 Tips for Portfolio
 
 ### Highlight These Points:
-1. **End-to-End Pipeline**: From raw data to deployed dashboard
-2. **Modern ML Stack**: XGBoost, LightGBM, SHAP
-3. **Business Focus**: ROI calculations, actionable insights
-4. **Production Code**: Modular, documented, reusable
-5. **Explainability**: SHAP analysis for transparency
-
-### Add to Your Portfolio:
-- Link to GitHub repository
-- Screenshots of dashboard
-- Short demo video (Loom/YouTube)
-- Key metrics: 80% accuracy, 84.5% ROC-AUC
-- Business impact: 390% ROI example
+1. **End-to-End Pipeline**: from raw data to a dashboard that serves the trained model
+2. **Sound evaluation**: model selection, calibration and threshold tuning without touching the test set
+3. **Business Focus**: ROI estimate with stated assumptions and a break-even point
+4. **Explainability**: permutation importance and SHAP
+5. **Tested code**: automated tests, including the saved model and every dashboard page
 
 ### Talking Points in Interviews:
-- "Built end-to-end ML pipeline with 8 algorithms"
-- "Achieved 80% accuracy using XGBoost"
-- "Implemented SHAP for model explainability"
-- "Created interactive dashboard for business users"
-- "Calculated 390% ROI on retention efforts"
+- "Compared 8 algorithms and selected by cross-validated PR-AUC, because only 14.5% of customers churn and accuracy hides that"
+- "The model catches 83% of churners, and 97% of the customers it flags really do churn"
+- "Calibrated the probabilities: customers scored under 10% churned at 2.4% against 2.3% predicted"
+- "Customers with 4+ service calls churn at 52% versus 11%, which points to a concrete intervention"
+- "With a 30% retention success rate, a campaign returns about 190% ROI; it breaks even at about 10%"
 
----
-
-## 🔄 Next Steps
-
-### Immediate (Today):
-- [ ] Run all 3 notebooks
-- [ ] Launch dashboard and explore
-- [ ] Update README with your info
-- [ ] Take screenshots
-
-### Short Term (This Week):
-- [ ] Add your contact info to README
-- [ ] Push to GitHub
-- [ ] Share on LinkedIn
-- [ ] Get feedback from peers
-
-### Long Term (Future):
-- [ ] Add more advanced features
-- [ ] Deploy to Streamlit Cloud
-- [ ] Build REST API
-- [ ] Add real-time data integration
+Be ready to explain the limitations too: there is no time dimension in the data, and the business figures are assumptions.
 
 ---
 
@@ -198,42 +127,11 @@ streamlit run app/streamlit_app.py --server.port 8502
 - **Streamlit Docs**: https://docs.streamlit.io/
 
 ### Common Questions:
-**Q: How long does training take?**
-A: 2-5 minutes for all models (without hyperparameter tuning)
-
 **Q: Can I use my own data?**
-A: Yes! Replace data/raw/telecom_churn.csv and update config.py
+A: Yes, if it has the same columns. Replace `data/raw/telecom_churn.csv`, update the feature lists in `src/config.py` if needed, and retrain.
 
 **Q: How do I deploy this?**
-A: Streamlit Cloud (free), Heroku, AWS, or Docker
+A: Streamlit Cloud (free). Choose Python 3.13 in the app's advanced settings so the pinned requirements install.
 
 **Q: Is this production-ready?**
-A: Almost! Add authentication, logging, and monitoring for production
-
----
-
-## 🎉 Congratulations!
-
-You now have a **portfolio-ready, production-quality** customer churn prediction system!
-
-### What Makes This Stand Out:
-✅ Modern ML algorithms (XGBoost, LightGBM)
-✅ Model explainability (SHAP)
-✅ Interactive dashboard (Streamlit)
-✅ Business impact analysis (ROI)
-✅ Clean, modular code structure
-✅ Comprehensive documentation
-✅ Professional GitHub README
-
-**This project demonstrates:**
-- Machine learning expertise
-- Software engineering skills
-- Business acumen
-- Full-stack capabilities
-- Deployment readiness
-
----
-
-<p align="center">
-  <strong>Ready to impress recruiters! 🚀</strong>
-</p>
+A: Not yet. Production use would need monitoring for data drift, scheduled retraining, logging and real business figures for the ROI estimate.

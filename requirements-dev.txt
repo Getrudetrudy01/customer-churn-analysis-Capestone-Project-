@@ -1,0 +1,7 @@
+# Tools for development: tests and notebooks. Not needed to run the dashboard.
+-r requirements.txt
+
+pytest==9.1.1
+ipykernel==7.4.0
+nbconvert==7.17.2
+notebook>=7.0

@@ -5,12 +5,10 @@ Handles data loading, cleaning, feature engineering, and transformation.
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from typing import Tuple
-import joblib
 
 from src.config import (
     RAW_DATA_PATH,
@@ -18,8 +16,7 @@ from src.config import (
     CATEGORICAL_FEATURES,
     NUMERICAL_FEATURES,
     ENGINEERED_FEATURES,
-    TARGET,
-    SCALER_PATH
+    TARGET
 )
 
 
@@ -63,13 +60,13 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         numerical_cols = df_clean.select_dtypes(include=[np.number]).columns
         for col in numerical_cols:
             if df_clean[col].isnull().sum() > 0:
-                df_clean[col].fillna(df_clean[col].median(), inplace=True)
+                df_clean[col] = df_clean[col].fillna(df_clean[col].median())
 
         # For categorical columns, fill with mode
-        categorical_cols = df_clean.select_dtypes(include=['object']).columns
+        categorical_cols = df_clean.columns.difference(numerical_cols)
         for col in categorical_cols:
             if df_clean[col].isnull().sum() > 0:
-                df_clean[col].fillna(df_clean[col].mode()[0], inplace=True)
+                df_clean[col] = df_clean[col].fillna(df_clean[col].mode()[0])
 
     print(f"Data cleaned. Missing values: {df_clean.isnull().sum().sum()}")
     return df_clean
@@ -222,36 +219,6 @@ def encode_features(df: pd.DataFrame, drop_first: bool = True) -> pd.DataFrame:
 
     print(f"Encoding complete. Shape: {df_encoded.shape}")
     return df_encoded
-
-
-def scale_features(
-    X_train: pd.DataFrame,
-    X_test: pd.DataFrame = None,
-    save_scaler: bool = True
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Scale numerical features using StandardScaler.
-
-    Args:
-        X_train: Training features
-        X_test: Test features (optional)
-        save_scaler: Whether to save the scaler for later use
-
-    Returns:
-        Tuple of (scaled_train, scaled_test) or just scaled_train if X_test is None
-    """
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-
-    if save_scaler:
-        joblib.dump(scaler, SCALER_PATH)
-        print(f"Scaler saved to {SCALER_PATH}")
-
-    if X_test is not None:
-        X_test_scaled = scaler.transform(X_test)
-        return X_train_scaled, X_test_scaled
-
-    return X_train_scaled
 
 
 def prepare_data(

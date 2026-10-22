@@ -24,8 +24,6 @@ RAW_DATA_PATH = RAW_DATA_DIR / "telecom_churn.csv"
 PROCESSED_DATA_PATH = PROCESSED_DATA_DIR / "processed_churn.csv"
 
 # Model file paths
-BEST_MODEL_PATH = MODEL_DIR / "best_model.pkl"
-SCALER_PATH = MODEL_DIR / "scaler.pkl"
 PIPELINE_PATH = MODEL_DIR / "churn_pipeline.pkl"
 METRICS_PATH = MODEL_DIR / "metrics.json"
 
