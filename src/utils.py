@@ -226,6 +226,54 @@ def calculate_business_impact(
     }
 
 
+def break_even_probability(
+    avg_customer_value: float = AVG_CUSTOMER_VALUE,
+    retention_cost: float = RETENTION_COST,
+    retention_success_rate: float = RETENTION_SUCCESS_RATE
+) -> float:
+    """
+    Churn probability above which contacting a customer is expected to pay off.
+
+    Contacting a customer with churn probability p is worth
+    p * retention_success_rate * avg_customer_value - retention_cost on average,
+    which is positive when p exceeds the value returned here. This only works
+    because the model's probabilities are calibrated.
+
+    Returns:
+        Break-even churn probability (can exceed 1 if no customer is worth contacting)
+    """
+    return retention_cost / (retention_success_rate * avg_customer_value)
+
+
+def profit_curve(
+    probabilities: np.ndarray,
+    y_true: np.ndarray,
+    avg_customer_value: float = AVG_CUSTOMER_VALUE,
+    retention_cost: float = RETENTION_COST,
+    retention_success_rate: float = RETENTION_SUCCESS_RATE
+) -> pd.DataFrame:
+    """
+    Net benefit of contacting the k highest-risk customers, for every k,
+    measured against what those customers actually did.
+
+    Args:
+        probabilities: Predicted churn probabilities
+        y_true: Actual outcomes (1 = churned)
+
+    Returns:
+        DataFrame with columns customers_contacted, min_probability and net_benefit
+    """
+    order = np.argsort(-np.asarray(probabilities), kind='stable')
+    churned = np.asarray(y_true)[order]
+    gains = churned * retention_success_rate * avg_customer_value - retention_cost
+
+    return pd.DataFrame({
+        'customers_contacted': np.arange(1, len(order) + 1),
+        'min_probability': np.asarray(probabilities)[order],
+        'net_benefit': np.cumsum(gains)
+    })
+
+
 def format_business_metrics(metrics: dict) -> str:
     """
     Format business metrics for display.

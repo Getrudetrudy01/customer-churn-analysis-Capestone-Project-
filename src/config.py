@@ -75,6 +75,14 @@ RANDOM_STATE = 42
 TEST_SIZE = 0.3
 CV_FOLDS = 5
 
+# Price per minute in the dataset (each charge column equals minutes x rate)
+CHARGE_PER_MINUTE = {
+    "day": 0.17,
+    "eve": 0.085,
+    "night": 0.045,
+    "intl": 0.27
+}
+
 # Business assumptions for the impact estimate (not measured from data; adjust to real figures)
 AVG_CUSTOMER_VALUE = 1000       # Lifetime value of a retained customer ($)
 RETENTION_COST = 100            # Cost of one retention effort ($)

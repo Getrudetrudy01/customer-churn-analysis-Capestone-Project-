@@ -101,10 +101,10 @@ streamlit run app/streamlit_app.py --server.port 8502
 ## 💡 Tips for Portfolio
 
 ### Highlight These Points:
-1. **End-to-End Pipeline**: from raw data to a dashboard that serves the trained model
+1. **From prediction to action**: the dashboard explains each customer's score, estimates which retention actions would lower it, and produces a call list
 2. **Sound evaluation**: model selection, calibration and threshold tuning without touching the test set
-3. **Business Focus**: ROI estimate with stated assumptions and a break-even point
-4. **Explainability**: permutation importance and SHAP
+3. **Business Focus**: a break-even rule for who to contact, with stated assumptions
+4. **Explainability**: per-customer explanations, permutation importance and SHAP
 5. **Tested code**: automated tests, including the saved model and every dashboard page
 
 ### Talking Points in Interviews:
@@ -112,7 +112,8 @@ streamlit run app/streamlit_app.py --server.port 8502
 - "The model catches 83% of churners, and 97% of the customers it flags really do churn"
 - "Calibrated the probabilities: customers scored under 10% churned at 2.4% against 2.3% predicted"
 - "Customers with 4+ service calls churn at 52% versus 11%, which points to a concrete intervention"
-- "With a 30% retention success rate, a campaign returns about 190% ROI; it breaks even at about 10%"
+- "Because the probabilities are calibrated, who to contact is a one-line rule: risk × success rate × customer value must exceed the offer cost. Chosen without hindsight, it gets within 3% of the best possible campaign"
+- "The dashboard shows why each customer is at risk and what would help, e.g. resolving service issues for a light user who keeps calling support"
 
 Be ready to explain the limitations too: there is no time dimension in the data, and the business figures are assumptions.
 

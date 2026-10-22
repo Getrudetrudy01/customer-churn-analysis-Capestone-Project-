@@ -43,7 +43,7 @@ An end-to-end machine learning pipeline that:
 2. Compares 8 models, chosen by cross-validated performance on the training data
 3. Calibrates the chosen model's probabilities and tunes its decision threshold
 4. Explains predictions with permutation importance and SHAP
-5. Serves predictions through an interactive dashboard
+5. Serves predictions through an interactive dashboard that explains each customer's score, tests retention actions and plans a campaign
 
 ---
 
@@ -66,7 +66,7 @@ Gradient Boosting and XGBoost performed almost identically in cross-validation, 
 - **International plan**: subscribers churn at 42%, versus 11% without one
 - **Account length** has almost no relationship with churn
 
-**Business impact (illustrative):** if 30% of contacted churners accept a retention offer, contacting every customer the model flags returns about $23,600 net on the test set (190% ROI), assuming a $1,000 customer value and a $100 cost per contact. These figures are assumptions, not measurements; the dashboard lets you change them, and the campaign breaks even at roughly a 10% success rate.
+**Business impact (illustrative):** assuming a $1,000 customer value, a $100 offer and 30% of contacted churners staying, a customer is worth contacting when their churn risk is above 33%. On the test set that means 127 calls and about $23,600 net benefit (190% ROI). The best result possible with hindsight is $24,200, so this simple rule, chosen without seeing outcomes, gets within 3% of it; it works because the model's probabilities are calibrated. The business figures are assumptions, not measurements, and the dashboard lets you change them.
 
 ---
 
@@ -81,14 +81,15 @@ Gradient Boosting and XGBoost performed almost identically in cross-validation, 
 - **Model Explainability**: permutation importance and SHAP values
 
 ### Interactive Dashboard
-- **Real-time Predictions**: churn probability for an individual customer from the trained model
-- **Data Exploration**: interactive visualizations
-- **Model Performance**: metrics from the latest training run
-- **Business Impact**: adjustable ROI estimate based on the model's test-set results
+- **Live predictions with explanations**: each customer's churn risk, the factors raising or lowering it, and which retention actions would lower it most
+- **Campaign planner**: a break-even rule for who to contact, a profit curve, and a ranked call list you can download
+- **Model performance**: metrics, confusion matrix and threshold trade-off from the latest training run
+- **Data exploration**: churn rates by usage, plans and service calls
+- Light and dark mode, and a layout that works on phones
 
 ### Code Quality
 - Modular Python package (`src/`) with configuration in one place
-- Automated tests for preprocessing, the business calculations, the saved model and every dashboard page
+- Automated tests for preprocessing, explanations, the business calculations, the saved model and every dashboard page
 - Pinned dependencies, so the saved model loads with the library versions it was trained with
 
 
@@ -163,8 +164,11 @@ pytest
 ## Project Structure
 
 ```
+├── .streamlit/config.toml      # Dashboard theme
 ├── app/
-│   ├── streamlit_app.py        # Dashboard
+│   ├── streamlit_app.py        # Dashboard entry point and navigation
+│   ├── common.py               # Shared loading, scoring and colours
+│   ├── views/                  # One file per dashboard page
 │   └── assets/
 ├── data/
 │   ├── raw/telecom_churn.csv   # Original dataset
@@ -177,6 +181,7 @@ pytest
 ├── src/
 │   ├── config.py               # Paths, feature lists, business assumptions
 │   ├── data_preprocessing.py   # Cleaning, feature engineering, preprocessing pipeline
+│   ├── explain.py              # Per-customer explanations and retention actions
 │   ├── model_training.py       # Model comparison, calibration, threshold tuning
 │   ├── utils.py                # Business impact, SHAP, reporting
 │   └── visualization.py        # Plotting helpers
@@ -187,29 +192,28 @@ pytest
 
 ## Dashboard Preview
 
-### Home Page
-- Project overview and key metrics
-- Quick navigation to all features
+### Overview
+- Headline results: churn rate, share of churners caught, accuracy of flags
+- What the model relies on and where churn concentrates
 
-### Data Exploration
-- Interactive visualizations
-- Statistical summaries
-- Feature distributions by churn status
+### Explore the Data
+- Distributions and churn rates for each attribute
+- Raw data and summary statistics on demand
 
 ### Model Performance
-- Model comparison table and charts
-- Performance of the deployed model
-- Key churn drivers
+- Precision, recall, F1 and PR-AUC of the deployed model
+- Confusion matrix and how precision and recall change with the threshold
+- How the eight models compared in cross-validation
 
-### Customer Prediction
-- Churn probability from the trained model
-- Risk level and the model's decision threshold
-- Retention recommendations
+### Predict a Customer
+- Churn risk that updates as you change any input, with example customers to start from
+- **Why this score**: how much each factor raises or lowers the risk compared with a typical customer
+- **What would lower the risk**: the model's estimate for actions such as resolving service issues
 
-### Business Impact
-- Adjustable customer value, contact cost and success rate
-- Net benefit and ROI compared with no campaign
-- Break-even success rate
+### Plan a Campaign
+- Adjustable customer value, offer cost and acceptance rate
+- Break-even risk: who is worth contacting
+- Profit curve and a downloadable call list with each customer's main risk factor and suggested action
 
 ---
 
@@ -239,4 +243,5 @@ pytest
 
 - The dataset has no dates, so the model cannot be checked on newer customers than it was trained on; performance on future customers may be lower.
 - The business impact depends on assumed customer value, contact cost and retention success rate, which should be replaced with real figures.
+- Explanations and suggested actions show patterns the model learned from historical data, not proven causal effects. Measuring what an offer actually changes would need data on who was contacted, which this dataset does not have.
 - Several features are near-duplicates (each charge column is a fixed multiple of its minutes column), and `State` adds 51 sparse columns; a simpler feature set would likely perform just as well.

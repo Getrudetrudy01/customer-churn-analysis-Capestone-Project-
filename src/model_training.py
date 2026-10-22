@@ -12,6 +12,7 @@ from sklearn.model_selection import (
     StratifiedKFold, cross_validate, cross_val_predict
 )
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.inspection import permutation_importance
 from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
@@ -439,7 +440,8 @@ def save_metrics(
     business_impact: Dict[str, float],
     test_size: int,
     final_metrics: Dict[str, float],
-    threshold: float
+    threshold: float,
+    feature_importance: pd.Series
 ) -> None:
     """
     Save evaluation results so the dashboard shows the numbers from the latest training run.
@@ -451,12 +453,17 @@ def save_metrics(
         test_size: Number of customers in the test set
         final_metrics: Test-set metrics of the calibrated final model at its threshold
         threshold: Decision threshold of the final model
+        feature_importance: Permutation importance of each raw input, highest first
     """
     metrics = {
         'best_model': best_model_name,
         'test_size': test_size,
         'threshold': threshold,
         'final_model': final_metrics,
+        'feature_importance': [
+            {'feature': feature, 'importance': float(value)}
+            for feature, value in feature_importance.items()
+        ],
         'results': results_df.to_dict(orient='records'),
         'confusion_matrix': {
             key: business_impact[key]
@@ -550,13 +557,22 @@ def train_and_evaluate_pipeline(
           f"PR-AUC: {final_metrics['pr_auc']:.4f}")
     print(format_business_metrics(business_impact))
 
+    # Which raw inputs the final model relies on: drop in test-set PR-AUC when shuffled
+    importance = permutation_importance(
+        final_model, X_test, y_test,
+        scoring='average_precision', n_repeats=5, random_state=RANDOM_STATE
+    )
+    feature_importance = pd.Series(
+        importance.importances_mean, index=X_test.columns
+    ).sort_values(ascending=False)
+
     # Save final model together with its preprocessing
     trainer.save_model(final_model, PIPELINE_PATH.name)
 
     # Save results for the dashboard and the text report
     save_metrics(
         results_df, trainer.best_model_name, business_impact,
-        len(y_test), final_metrics, threshold
+        len(y_test), final_metrics, threshold, feature_importance
     )
     generate_model_report(
         results_df, business_impact,

@@ -11,6 +11,84 @@
     "roc_auc": 0.9166565839887074,
     "pr_auc": 0.8767455342466874
   },
+  "feature_importance": [
+    {
+      "feature": "Total day charge",
+      "importance": 0.5447816101196088
+    },
+    {
+      "feature": "Total eve charge",
+      "importance": 0.32059251231950975
+    },
+    {
+      "feature": "Customer service calls",
+      "importance": 0.25808681000452005
+    },
+    {
+      "feature": "International plan",
+      "importance": 0.24028864014402534
+    },
+    {
+      "feature": "Total night charge",
+      "importance": 0.17673728432088917
+    },
+    {
+      "feature": "Total intl calls",
+      "importance": 0.12062980611493786
+    },
+    {
+      "feature": "Total intl minutes",
+      "importance": 0.07309865884158488
+    },
+    {
+      "feature": "Total intl charge",
+      "importance": 0.047549234923351634
+    },
+    {
+      "feature": "Number vmail messages",
+      "importance": 0.01598534526935307
+    },
+    {
+      "feature": "Voice mail plan",
+      "importance": 0.013894067505441221
+    },
+    {
+      "feature": "State",
+      "importance": -0.00036134070603821566
+    },
+    {
+      "feature": "Area code",
+      "importance": -0.0004704859961196739
+    },
+    {
+      "feature": "Total eve calls",
+      "importance": -0.0007780555560368719
+    },
+    {
+      "feature": "Total eve minutes",
+      "importance": -0.0016495650021498998
+    },
+    {
+      "feature": "Total night minutes",
+      "importance": -0.0021520839446433236
+    },
+    {
+      "feature": "Total day calls",
+      "importance": -0.004902318234265013
+    },
+    {
+      "feature": "Account length",
+      "importance": -0.00604423081136698
+    },
+    {
+      "feature": "Total night calls",
+      "importance": -0.007323506473292984
+    },
+    {
+      "feature": "Total day minutes",
+      "importance": -0.007541133353834706
+    }
+  ],
   "results": [
     {
       "model": "LightGBM",
