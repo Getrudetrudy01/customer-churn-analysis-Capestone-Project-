@@ -26,10 +26,10 @@ st.markdown(
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Customers analysed", f"{len(df):,}", border=True)
 col2.metric("Churn rate", f"{churned.mean():.1%}", border=True)
-col3.metric("Churners the model catches", f"{final['recall']:.0%}", border=True,
-            help="Recall on 1,000 held-out customers")
-col4.metric("Flagged customers who churn", f"{final['precision']:.0%}", border=True,
-            help="Precision on 1,000 held-out customers")
+col3.metric("Churners caught", f"{final['recall']:.0%}", border=True,
+            help="Recall: share of churners the model flags, on 1,000 held-out customers")
+col4.metric("Flags that are right", f"{final['precision']:.0%}", border=True,
+            help="Precision: share of flagged customers who really churn, on 1,000 held-out customers")
 
 left, right = st.columns(2, gap="large")
 

@@ -1,6 +1,10 @@
 # Customer Churn Prediction - Telecom Industry
 
-A machine learning project that predicts which telecom customers are likely to churn, explains what drives churn, and serves predictions through an interactive Streamlit dashboard.
+A machine learning project that tells a retention team which telecom customers are likely to leave, why each one is at risk, and whether contacting them pays off.
+
+**[Try the live dashboard →](https://customer-churn-analysis-project.streamlit.app/)**
+
+![Dashboard overview: headline results, what the model relies on, and where churn concentrates](docs/images/overview.png)
 
 
 ## Table of Contents
@@ -34,7 +38,7 @@ Telecom companies face significant challenges with customer retention. The cost 
 
 ### Dataset
 
-3,333 telecom customers with 19 features (account details, plan subscriptions, call minutes, charges and customer service calls by time of day). 14.5% of customers churned, so the classes are imbalanced.
+3,333 telecom customers with 19 features (account details, plan subscriptions, call minutes, charges and customer service calls by time of day). 14.5% of customers churned, so the classes are imbalanced. The data is a public telecom churn dataset from [Kaggle](https://www.kaggle.com/).
 
 ### Solution
 
@@ -191,6 +195,14 @@ pytest
 ---
 
 ## Dashboard Preview
+
+**Predict a Customer:** a frequent support caller with light usage scores 100% risk; resolving their service issues would bring it to about 1%.
+
+![Predict a Customer page: churn risk, why this score, and what would lower the risk](docs/images/predict.png)
+
+**Plan a Campaign:** contacting everyone above the break-even risk gets within 3% of the best possible campaign.
+
+![Plan a Campaign page: break-even rule, expected and measured net benefit, and profit curve](docs/images/campaign.png)
 
 ### Overview
 - Headline results: churn rate, share of churners caught, accuracy of flags
