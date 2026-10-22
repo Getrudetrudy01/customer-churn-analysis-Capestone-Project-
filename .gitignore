@@ -61,6 +61,7 @@ Thumbs.db
 !models/.gitkeep
 !models/best_model.pkl
 !models/scaler.pkl
+!models/churn_pipeline.pkl
 
 # Reports
 *.pdf

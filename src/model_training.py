@@ -2,26 +2,49 @@
 Model training module for customer churn prediction.
 Includes multiple ML algorithms, hyperparameter tuning, and evaluation.
 """
+import json
 import pandas as pd
 import numpy as np
 import joblib
 from typing import Dict, Tuple, Any
-from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV, cross_val_score
+from sklearn.model_selection import (
+    train_test_split, GridSearchCV, RandomizedSearchCV,
+    StratifiedKFold, cross_validate, cross_val_predict
+)
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    classification_report, confusion_matrix, roc_auc_score, roc_curve
+    confusion_matrix, roc_auc_score, average_precision_score, precision_recall_curve
 )
 import xgboost as xgb
 import lightgbm as lgb
-import shap
 
-from src.config import MODEL_DIR, RANDOM_STATE, TEST_SIZE, CV_FOLDS
-from src.data_preprocessing import scale_features
+from src.config import MODEL_DIR, PIPELINE_PATH, METRICS_PATH, RANDOM_STATE, TEST_SIZE, CV_FOLDS
+from src.data_preprocessing import build_preprocessor
+from src.utils import generate_model_report, calculate_business_impact, format_business_metrics
+
+
+def build_pipeline(model: Any) -> Pipeline:
+    """
+    Chain preprocessing and a classifier so raw customer records can be scored directly.
+
+    Args:
+        model: Unfitted classifier
+
+    Returns:
+        Unfitted Pipeline
+    """
+    return Pipeline([
+        ('preprocess', build_preprocessor()),
+        ('classifier', model)
+    ])
 
 
 class ChurnModelTrainer:
@@ -41,6 +64,8 @@ class ChurnModelTrainer:
         self.results = {}
         self.best_model = None
         self.best_model_name = None
+        self.final_model = None
+        self.threshold = 0.5
 
     def initialize_models(self) -> Dict[str, Any]:
         """
@@ -67,8 +92,7 @@ class ChurnModelTrainer:
             ),
             'XGBoost': xgb.XGBClassifier(
                 random_state=self.random_state,
-                eval_metric='logloss',
-                use_label_encoder=False
+                eval_metric='logloss'
             ),
             'LightGBM': lgb.LGBMClassifier(
                 random_state=self.random_state,
@@ -109,7 +133,8 @@ class ChurnModelTrainer:
         model: Any,
         X_test: np.ndarray,
         y_test: np.ndarray,
-        model_name: str = 'Model'
+        model_name: str = 'Model',
+        threshold: float = 0.5
     ) -> Dict[str, float]:
         """
         Evaluate a trained model.
@@ -119,25 +144,27 @@ class ChurnModelTrainer:
             X_test: Test features
             y_test: Test target
             model_name: Name of the model
+            threshold: Probability at or above which a customer is predicted to churn
 
         Returns:
             Dictionary of evaluation metrics
         """
-        y_pred = model.predict(X_test)
-        y_pred_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
+        y_pred_proba = model.predict_proba(X_test)[:, 1]
+        y_pred = (y_pred_proba >= threshold).astype(int)
 
-        metrics = {
+        return {
             'model': model_name,
             'accuracy': accuracy_score(y_test, y_pred),
             'precision': precision_score(y_test, y_pred, zero_division=0),
             'recall': recall_score(y_test, y_pred, zero_division=0),
             'f1_score': f1_score(y_test, y_pred, zero_division=0),
+            'roc_auc': roc_auc_score(y_test, y_pred_proba),
+            'pr_auc': average_precision_score(y_test, y_pred_proba)
         }
 
-        if y_pred_proba is not None:
-            metrics['roc_auc'] = roc_auc_score(y_test, y_pred_proba)
-
-        return metrics
+    def cv_splitter(self) -> StratifiedKFold:
+        """Stratified folds shared by model selection, calibration and threshold tuning."""
+        return StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=self.random_state)
 
     def train_all_models(
         self,
@@ -147,7 +174,8 @@ class ChurnModelTrainer:
         y_test: np.ndarray
     ) -> pd.DataFrame:
         """
-        Train and evaluate all models.
+        Train and evaluate all models. Models are ranked by cross-validated PR-AUC
+        on the training set, so the test set plays no part in choosing the best model.
 
         Args:
             X_train: Training features
@@ -166,28 +194,28 @@ class ChurnModelTrainer:
         for name, model in self.models.items():
             print(f"\nTraining {name}...")
 
+            # Cross-validation on the training set (used for model selection)
+            cv_scores = cross_validate(
+                model, X_train, y_train,
+                cv=self.cv_splitter(), scoring=['average_precision', 'f1']
+            )
+
             # Train model
             trained_model = self.train_model(model, X_train, y_train)
 
-            # Evaluate model
+            # Evaluate model on the test set (reported only)
             metrics = self.evaluate_model(trained_model, X_test, y_test, name)
-
-            # Cross-validation score
-            cv_scores = cross_val_score(
-                trained_model, X_train, y_train,
-                cv=CV_FOLDS, scoring='accuracy'
-            )
-            metrics['cv_mean'] = cv_scores.mean()
-            metrics['cv_std'] = cv_scores.std()
+            metrics['cv_pr_auc'] = cv_scores['test_average_precision'].mean()
+            metrics['cv_pr_auc_std'] = cv_scores['test_average_precision'].std()
+            metrics['cv_f1'] = cv_scores['test_f1'].mean()
 
             results.append(metrics)
 
-            print(f"{name} - Accuracy: {metrics['accuracy']:.4f}, "
-                  f"F1: {metrics['f1_score']:.4f}, "
-                  f"ROC-AUC: {metrics.get('roc_auc', 'N/A')}")
+            print(f"{name} - CV PR-AUC: {metrics['cv_pr_auc']:.4f}, "
+                  f"CV F1: {metrics['cv_f1']:.4f}")
 
         results_df = pd.DataFrame(results)
-        results_df = results_df.sort_values('f1_score', ascending=False)
+        results_df = results_df.sort_values('cv_pr_auc', ascending=False)
 
         self.results = results_df
 
@@ -198,22 +226,55 @@ class ChurnModelTrainer:
 
         return results_df
 
+    def build_final_model(
+        self,
+        model: Any,
+        X_train: pd.DataFrame,
+        y_train: pd.Series
+    ) -> Tuple[Any, float]:
+        """
+        Calibrate the selected model's probabilities and choose its decision threshold.
+        The threshold maximizes F1 on out-of-fold training predictions, so the test set
+        is not used.
+
+        Args:
+            model: Selected model (fitted or not; it is cloned)
+            X_train: Training features
+            y_train: Training target
+
+        Returns:
+            Tuple of (fitted calibrated model, threshold)
+        """
+        calibrated = CalibratedClassifierCV(clone(model), method='isotonic', cv=self.cv_splitter())
+
+        oof_proba = cross_val_predict(
+            calibrated, X_train, y_train,
+            cv=self.cv_splitter(), method='predict_proba'
+        )[:, 1]
+        precision, recall, thresholds = precision_recall_curve(y_train, oof_proba)
+        f1 = 2 * precision * recall / np.maximum(precision + recall, 1e-12)
+        threshold = float(thresholds[np.argmax(f1[:-1])])
+
+        calibrated.fit(X_train, y_train)
+        print(f"Calibrated model built. Decision threshold: {threshold:.3f}")
+        return calibrated, threshold
+
     def hyperparameter_tuning_xgboost(
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
         method: str = 'random'
-    ) -> Tuple[Any, Dict]:
+    ) -> Tuple[Any, Dict, float]:
         """
         Perform hyperparameter tuning for XGBoost.
 
         Args:
-            X_train: Training features
+            X_train: Raw training features
             y_train: Training target
             method: 'grid' or 'random' search
 
         Returns:
-            Tuple of (best_model, best_params)
+            Tuple of (best_pipeline, best_params, best_cv_pr_auc)
         """
         print("\nPerforming hyperparameter tuning for XGBoost...")
 
@@ -226,18 +287,18 @@ class ChurnModelTrainer:
             'min_child_weight': [1, 3, 5]
         }
 
-        xgb_model = xgb.XGBClassifier(
+        xgb_model = build_pipeline(xgb.XGBClassifier(
             random_state=self.random_state,
-            eval_metric='logloss',
-            use_label_encoder=False
-        )
+            eval_metric='logloss'
+        ))
+        param_grid = {f'classifier__{name}': values for name, values in param_grid.items()}
 
         if method == 'grid':
             search = GridSearchCV(
                 xgb_model,
                 param_grid,
-                cv=CV_FOLDS,
-                scoring='f1',
+                cv=self.cv_splitter(),
+                scoring='average_precision',
                 n_jobs=-1,
                 verbose=1
             )
@@ -246,8 +307,8 @@ class ChurnModelTrainer:
                 xgb_model,
                 param_grid,
                 n_iter=50,
-                cv=CV_FOLDS,
-                scoring='f1',
+                cv=self.cv_splitter(),
+                scoring='average_precision',
                 n_jobs=-1,
                 random_state=self.random_state,
                 verbose=1
@@ -256,26 +317,26 @@ class ChurnModelTrainer:
         search.fit(X_train, y_train)
 
         print(f"\nBest parameters: {search.best_params_}")
-        print(f"Best cross-validation score: {search.best_score_:.4f}")
+        print(f"Best cross-validated PR-AUC: {search.best_score_:.4f}")
 
-        return search.best_estimator_, search.best_params_
+        return search.best_estimator_, search.best_params_, search.best_score_
 
     def hyperparameter_tuning_lightgbm(
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
         method: str = 'random'
-    ) -> Tuple[Any, Dict]:
+    ) -> Tuple[Any, Dict, float]:
         """
         Perform hyperparameter tuning for LightGBM.
 
         Args:
-            X_train: Training features
+            X_train: Raw training features
             y_train: Training target
             method: 'grid' or 'random' search
 
         Returns:
-            Tuple of (best_model, best_params)
+            Tuple of (best_pipeline, best_params, best_cv_pr_auc)
         """
         print("\nPerforming hyperparameter tuning for LightGBM...")
 
@@ -289,17 +350,18 @@ class ChurnModelTrainer:
             'min_child_samples': [10, 20, 30]
         }
 
-        lgb_model = lgb.LGBMClassifier(
+        lgb_model = build_pipeline(lgb.LGBMClassifier(
             random_state=self.random_state,
             verbose=-1
-        )
+        ))
+        param_grid = {f'classifier__{name}': values for name, values in param_grid.items()}
 
         if method == 'grid':
             search = GridSearchCV(
                 lgb_model,
                 param_grid,
-                cv=CV_FOLDS,
-                scoring='f1',
+                cv=self.cv_splitter(),
+                scoring='average_precision',
                 n_jobs=-1,
                 verbose=1
             )
@@ -308,8 +370,8 @@ class ChurnModelTrainer:
                 lgb_model,
                 param_grid,
                 n_iter=50,
-                cv=CV_FOLDS,
-                scoring='f1',
+                cv=self.cv_splitter(),
+                scoring='average_precision',
                 n_jobs=-1,
                 random_state=self.random_state,
                 verbose=1
@@ -318,16 +380,15 @@ class ChurnModelTrainer:
         search.fit(X_train, y_train)
 
         print(f"\nBest parameters: {search.best_params_}")
-        print(f"Best cross-validation score: {search.best_score_:.4f}")
+        print(f"Best cross-validated PR-AUC: {search.best_score_:.4f}")
 
-        return search.best_estimator_, search.best_params_
+        return search.best_estimator_, search.best_params_, search.best_score_
 
     def calculate_business_impact(
         self,
         y_test: np.ndarray,
         y_pred: np.ndarray,
-        avg_customer_value: float = 1000,
-        retention_cost: float = 100
+        **assumptions: float
     ) -> Dict[str, float]:
         """
         Calculate business impact of the churn prediction model.
@@ -335,36 +396,14 @@ class ChurnModelTrainer:
         Args:
             y_test: True labels
             y_pred: Predicted labels
-            avg_customer_value: Average customer lifetime value
-            retention_cost: Cost to retain a customer
+            **assumptions: Overrides for avg_customer_value, retention_cost
+                and retention_success_rate (see utils.calculate_business_impact)
 
         Returns:
             Dictionary with business metrics
         """
-        cm = confusion_matrix(y_test, y_pred)
-        tn, fp, fn, tp = cm.ravel()
-
-        # Calculate costs and savings
-        cost_of_false_negatives = fn * avg_customer_value
-        cost_of_retention_efforts = (tp + fp) * retention_cost
-        value_of_retained_customers = tp * (avg_customer_value - retention_cost)
-
-        total_cost = cost_of_false_negatives + cost_of_retention_efforts
-        total_revenue_saved = value_of_retained_customers
-
-        net_benefit = total_revenue_saved - total_cost
-
-        return {
-            'true_positives': int(tp),
-            'false_positives': int(fp),
-            'false_negatives': int(fn),
-            'true_negatives': int(tn),
-            'cost_of_missed_churners': cost_of_false_negatives,
-            'cost_of_retention': cost_of_retention_efforts,
-            'value_retained': value_of_retained_customers,
-            'net_benefit': net_benefit,
-            'roi': (net_benefit / cost_of_retention_efforts * 100) if cost_of_retention_efforts > 0 else 0
-        }
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
+        return calculate_business_impact(tp, fp, fn, tn, **assumptions)
 
     def save_model(self, model: Any, filename: str) -> None:
         """
@@ -394,6 +433,42 @@ class ChurnModelTrainer:
         return model
 
 
+def save_metrics(
+    results_df: pd.DataFrame,
+    best_model_name: str,
+    business_impact: Dict[str, float],
+    test_size: int,
+    final_metrics: Dict[str, float],
+    threshold: float
+) -> None:
+    """
+    Save evaluation results so the dashboard shows the numbers from the latest training run.
+
+    Args:
+        results_df: DataFrame with results for all models
+        best_model_name: Name of the selected model
+        business_impact: Output of calculate_business_impact for the final model
+        test_size: Number of customers in the test set
+        final_metrics: Test-set metrics of the calibrated final model at its threshold
+        threshold: Decision threshold of the final model
+    """
+    metrics = {
+        'best_model': best_model_name,
+        'test_size': test_size,
+        'threshold': threshold,
+        'final_model': final_metrics,
+        'results': results_df.to_dict(orient='records'),
+        'confusion_matrix': {
+            key: business_impact[key]
+            for key in ['true_positives', 'false_positives', 'false_negatives', 'true_negatives']
+        }
+    }
+
+    with open(METRICS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(metrics, f, indent=2)
+    print(f"Metrics saved to {METRICS_PATH}")
+
+
 def train_and_evaluate_pipeline(
     X: pd.DataFrame,
     y: pd.Series,
@@ -401,11 +476,13 @@ def train_and_evaluate_pipeline(
     tune_hyperparameters: bool = False
 ) -> Tuple[ChurnModelTrainer, pd.DataFrame]:
     """
-    Complete training and evaluation pipeline.
+    Complete training and evaluation pipeline. Every model is wrapped with the
+    preprocessing steps. The model with the best cross-validated PR-AUC is calibrated,
+    given a tuned decision threshold, evaluated once on the test set and saved.
 
     Args:
-        X: Features
-        y: Target
+        X: Raw features (from load_raw_features)
+        y: Target (0/1)
         test_size: Proportion of data for testing
         tune_hyperparameters: Whether to perform hyperparameter tuning
 
@@ -421,16 +498,15 @@ def train_and_evaluate_pipeline(
         X, y, test_size=test_size, random_state=RANDOM_STATE, stratify=y
     )
 
-    # Scale features
-    X_train_scaled, X_test_scaled = scale_features(X_train, X_test)
-
-    # Initialize trainer
+    # Initialize trainer with every model wrapped in the preprocessing pipeline
     trainer = ChurnModelTrainer()
+    trainer.models = {
+        name: build_pipeline(model)
+        for name, model in trainer.initialize_models().items()
+    }
 
     # Train all models
-    results_df = trainer.train_all_models(
-        X_train_scaled, y_train, X_test_scaled, y_test
-    )
+    results_df = trainer.train_all_models(X_train, y_train, X_test, y_test)
 
     print("\n" + "=" * 50)
     print("Model Comparison Results:")
@@ -443,47 +519,52 @@ def train_and_evaluate_pipeline(
         print("Starting hyperparameter tuning...")
         print("=" * 50)
 
-        # Tune XGBoost
-        best_xgb, xgb_params = trainer.hyperparameter_tuning_xgboost(
-            X_train_scaled, y_train, method='random'
-        )
+        # Tuned models replace the best model only if their CV PR-AUC is higher
+        tuned_candidates = [
+            ('XGBoost (Tuned)', trainer.hyperparameter_tuning_xgboost(X_train, y_train, method='random')),
+            ('LightGBM (Tuned)', trainer.hyperparameter_tuning_lightgbm(X_train, y_train, method='random'))
+        ]
+        best_cv_pr_auc = results_df.iloc[0]['cv_pr_auc']
+        for name, (tuned_model, _, cv_pr_auc) in tuned_candidates:
+            if cv_pr_auc > best_cv_pr_auc:
+                best_cv_pr_auc = cv_pr_auc
+                trainer.best_model_name = name
+                trainer.best_model = tuned_model
+        print(f"\nSelected model after tuning: {trainer.best_model_name}")
 
-        # Tune LightGBM
-        best_lgb, lgb_params = trainer.hyperparameter_tuning_lightgbm(
-            X_train_scaled, y_train, method='random'
-        )
-
-        # Evaluate tuned models
-        print("\nEvaluating tuned models...")
-        tuned_xgb_metrics = trainer.evaluate_model(
-            best_xgb, X_test_scaled, y_test, 'XGBoost (Tuned)'
-        )
-        tuned_lgb_metrics = trainer.evaluate_model(
-            best_lgb, X_test_scaled, y_test, 'LightGBM (Tuned)'
-        )
-
-        print(f"\nXGBoost (Tuned) - Accuracy: {tuned_xgb_metrics['accuracy']:.4f}, "
-              f"F1: {tuned_xgb_metrics['f1_score']:.4f}")
-        print(f"LightGBM (Tuned) - Accuracy: {tuned_lgb_metrics['accuracy']:.4f}, "
-              f"F1: {tuned_lgb_metrics['f1_score']:.4f}")
-
-    # Calculate business impact for best model
-    y_pred_best = trainer.best_model.predict(X_test_scaled)
-    business_impact = trainer.calculate_business_impact(y_test, y_pred_best)
-
+    # Calibrate the selected model and choose its threshold on training data only
     print("\n" + "=" * 50)
-    print("Business Impact Analysis:")
+    print(f"Calibrating {trainer.best_model_name}...")
     print("=" * 50)
-    for key, value in business_impact.items():
-        if 'cost' in key or 'value' in key or 'benefit' in key:
-            print(f"{key.replace('_', ' ').title()}: ${value:,.2f}")
-        elif 'roi' in key:
-            print(f"{key.upper()}: {value:.2f}%")
-        else:
-            print(f"{key.replace('_', ' ').title()}: {value}")
+    final_model, threshold = trainer.build_final_model(trainer.best_model, X_train, y_train)
 
-    # Save best model
-    trainer.save_model(trainer.best_model, 'best_model.pkl')
+    # The only time the final model sees the test set
+    final_metrics = trainer.evaluate_model(
+        final_model, X_test, y_test, f"{trainer.best_model_name} (calibrated)", threshold
+    )
+    y_pred_final = (final_model.predict_proba(X_test)[:, 1] >= threshold).astype(int)
+    business_impact = trainer.calculate_business_impact(y_test, y_pred_final)
+
+    print(f"\nFinal model on test set - Precision: {final_metrics['precision']:.4f}, "
+          f"Recall: {final_metrics['recall']:.4f}, F1: {final_metrics['f1_score']:.4f}, "
+          f"PR-AUC: {final_metrics['pr_auc']:.4f}")
+    print(format_business_metrics(business_impact))
+
+    # Save final model together with its preprocessing
+    trainer.save_model(final_model, PIPELINE_PATH.name)
+
+    # Save results for the dashboard and the text report
+    save_metrics(
+        results_df, trainer.best_model_name, business_impact,
+        len(y_test), final_metrics, threshold
+    )
+    generate_model_report(
+        results_df, business_impact,
+        final_metrics=final_metrics, threshold=threshold
+    )
+
+    trainer.final_model = final_model
+    trainer.threshold = threshold
 
     print("\n" + "=" * 50)
     print("Training pipeline complete!")
@@ -493,10 +574,10 @@ def train_and_evaluate_pipeline(
 
 
 if __name__ == "__main__":
-    from src.data_preprocessing import preprocess_pipeline
+    from src.data_preprocessing import load_raw_features
 
-    # Load and preprocess data
-    X, y = preprocess_pipeline()
+    # Load raw features; preprocessing happens inside each model's pipeline
+    X, y = load_raw_features()
 
     # Train and evaluate models
     trainer, results = train_and_evaluate_pipeline(X, y, tune_hyperparameters=False)

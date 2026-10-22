@@ -172,7 +172,7 @@ We developed an end-to-end machine learning pipeline that:
 
 ### 02_feature_engineering.ipynb
 - Data cleaning and transformation
-- Feature creation (tenure groups, service count, etc.)
+- Feature creation (total usage and charges, charge per minute, high-usage and service-call flags)
 - Feature encoding and scaling
 - Feature selection and importance
 

@@ -6,7 +6,12 @@ import numpy as np
 import shap
 import matplotlib.pyplot as plt
 from typing import Any, List
-from src.config import FIGURES_DIR
+from src.config import (
+    FIGURES_DIR,
+    AVG_CUSTOMER_VALUE,
+    RETENTION_COST,
+    RETENTION_SUCCESS_RATE
+)
 
 
 def explain_model_shap(
@@ -174,6 +179,53 @@ def get_churn_risk_category(probability: float) -> str:
         return "Very High Risk"
 
 
+def calculate_business_impact(
+    tp: int,
+    fp: int,
+    fn: int,
+    tn: int,
+    avg_customer_value: float = AVG_CUSTOMER_VALUE,
+    retention_cost: float = RETENTION_COST,
+    retention_success_rate: float = RETENTION_SUCCESS_RATE
+) -> dict:
+    """
+    Estimate the net benefit of contacting every customer the model flags,
+    compared with running no retention campaign at all.
+
+    Every flagged customer (TP + FP) costs one retention effort. Only true churners
+    can be saved, and only retention_success_rate of them accept the offer.
+    Churners the model misses are lost with or without the model, so their revenue
+    is reported but not counted as a cost of the model.
+
+    Args:
+        tp, fp, fn, tn: Confusion matrix counts
+        avg_customer_value: Lifetime value of a retained customer
+        retention_cost: Cost of one retention effort
+        retention_success_rate: Share of contacted churners who stay
+
+    Returns:
+        Dictionary with business metrics
+    """
+    customers_saved = tp * retention_success_rate
+    cost_of_retention = (tp + fp) * retention_cost
+    value_retained = customers_saved * avg_customer_value
+    net_benefit = value_retained - cost_of_retention
+
+    return {
+        'true_positives': int(tp),
+        'false_positives': int(fp),
+        'false_negatives': int(fn),
+        'true_negatives': int(tn),
+        'retention_success_rate': retention_success_rate,
+        'customers_saved': customers_saved,
+        'cost_of_missed_churners': fn * avg_customer_value,
+        'cost_of_retention': cost_of_retention,
+        'value_retained': value_retained,
+        'net_benefit': net_benefit,
+        'roi': (net_benefit / cost_of_retention * 100) if cost_of_retention > 0 else 0
+    }
+
+
 def format_business_metrics(metrics: dict) -> str:
     """
     Format business metrics for display.
@@ -195,46 +247,17 @@ def format_business_metrics(metrics: dict) -> str:
     formatted.append(f"  [!] False Negatives (Missed churners): {metrics['false_negatives']}")
     formatted.append(f"  [*] True Negatives (Correctly identified non-churners): {metrics['true_negatives']}")
 
-    formatted.append("\nFinancial Impact:")
-    formatted.append(f"  Cost of Missed Churners: ${metrics['cost_of_missed_churners']:,.2f}")
+    formatted.append(f"\nFinancial Impact (assuming {metrics['retention_success_rate']:.0%} of contacted churners stay):")
+    formatted.append(f"  Customers Saved: {metrics['customers_saved']:.1f}")
     formatted.append(f"  Cost of Retention Efforts: ${metrics['cost_of_retention']:,.2f}")
     formatted.append(f"  Value of Retained Customers: ${metrics['value_retained']:,.2f}")
-    formatted.append(f"  Net Benefit: ${metrics['net_benefit']:,.2f}")
+    formatted.append(f"  Net Benefit vs. No Campaign: ${metrics['net_benefit']:,.2f}")
     formatted.append(f"  ROI: {metrics['roi']:.2f}%")
+    formatted.append(f"  Revenue Still Lost to Missed Churners: ${metrics['cost_of_missed_churners']:,.2f}")
 
     formatted.append("\n" + "=" * 50)
 
     return "\n".join(formatted)
-
-
-def create_customer_profile(
-    customer_id: int,
-    tenure: int,
-    monthly_charges: float,
-    total_charges: float,
-    **kwargs
-) -> pd.DataFrame:
-    """
-    Create a customer profile for prediction.
-
-    Args:
-        customer_id: Customer ID
-        tenure: Number of months with company
-        monthly_charges: Monthly charges
-        total_charges: Total charges
-        **kwargs: Additional customer attributes
-
-    Returns:
-        DataFrame with customer profile
-    """
-    profile = {
-        'tenure': tenure,
-        'MonthlyCharges': monthly_charges,
-        'TotalCharges': total_charges,
-        **kwargs
-    }
-
-    return pd.DataFrame([profile])
 
 
 def print_model_summary(results_df: pd.DataFrame) -> None:
@@ -256,18 +279,20 @@ def print_model_summary(results_df: pd.DataFrame) -> None:
         print(f"  F1-Score:  {row['f1_score']:.4f}")
         if 'roc_auc' in row:
             print(f"  ROC-AUC:   {row['roc_auc']:.4f}")
-        if 'cv_mean' in row:
-            print(f"  CV Score:  {row['cv_mean']:.4f} (+/- {row['cv_std']:.4f})")
+        if 'cv_pr_auc' in row:
+            print(f"  CV PR-AUC: {row['cv_pr_auc']:.4f} (+/- {row['cv_pr_auc_std']:.4f})")
 
     print("\n" + "=" * 80)
-    print(f"🏆 BEST MODEL: {results_df.iloc[0]['model']} (F1-Score: {results_df.iloc[0]['f1_score']:.4f})")
+    print(f"🏆 BEST MODEL: {results_df.iloc[0]['model']} (CV PR-AUC: {results_df.iloc[0]['cv_pr_auc']:.4f})")
     print("=" * 80)
 
 
 def generate_model_report(
     results_df: pd.DataFrame,
     business_metrics: dict,
-    output_file: str = 'model_report.txt'
+    output_file: str = 'model_report.txt',
+    final_metrics: dict = None,
+    threshold: float = 0.5
 ) -> None:
     """
     Generate a comprehensive model report.
@@ -276,6 +301,8 @@ def generate_model_report(
         results_df: DataFrame with model results
         business_metrics: Dictionary of business metrics
         output_file: Output filename
+        final_metrics: Test-set metrics of the calibrated final model at its threshold
+        threshold: Decision threshold of the final model
     """
     from src.config import REPORTS_DIR
 
@@ -287,8 +314,19 @@ def generate_model_report(
 
     report_lines.append("MODEL PERFORMANCE COMPARISON")
     report_lines.append("-" * 80)
+    report_lines.append("Ranked by cross-validated PR-AUC on the training set (cv_pr_auc).")
+    report_lines.append("Test-set columns use the default 0.5 threshold.")
     report_lines.append(results_df.to_string(index=False))
     report_lines.append("")
+
+    if final_metrics is not None:
+        report_lines.append("FINAL MODEL (calibrated, test set)")
+        report_lines.append("-" * 80)
+        report_lines.append(f"  Model: {final_metrics['model']}")
+        report_lines.append(f"  Decision threshold: {threshold:.3f}")
+        for key in ['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'pr_auc']:
+            report_lines.append(f"  {key}: {final_metrics[key]:.4f}")
+        report_lines.append("")
 
     report_lines.append(format_business_metrics(business_metrics))
 
@@ -298,7 +336,7 @@ def generate_model_report(
 
     best_model = results_df.iloc[0]['model']
     report_lines.append(f"1. Deploy {best_model} for production use")
-    report_lines.append("2. Focus retention efforts on high-risk customers (probability > 0.6)")
+    report_lines.append(f"2. Contact customers whose churn probability is at least {threshold:.2f}")
     report_lines.append("3. Monitor model performance monthly and retrain as needed")
     report_lines.append("4. Implement A/B testing to validate retention strategies")
 

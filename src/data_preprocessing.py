@@ -4,8 +4,11 @@ Handles data loading, cleaning, feature engineering, and transformation.
 """
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from typing import Tuple
 import joblib
 
@@ -14,6 +17,7 @@ from src.config import (
     PROCESSED_DATA_PATH,
     CATEGORICAL_FEATURES,
     NUMERICAL_FEATURES,
+    ENGINEERED_FEATURES,
     TARGET,
     SCALER_PATH
 )
@@ -71,12 +75,19 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df_clean
 
 
-def create_features(df: pd.DataFrame) -> pd.DataFrame:
+def create_features(
+    df: pd.DataFrame,
+    high_usage_threshold: float = None,
+    verbose: bool = True
+) -> pd.DataFrame:
     """
     Create additional features for better prediction.
 
     Args:
         df: Cleaned DataFrame
+        high_usage_threshold: Total-minutes cut-off for the 'High usage' flag.
+            If None, uses the 75th percentile of df.
+        verbose: Whether to print progress
 
     Returns:
         DataFrame with additional features
@@ -118,13 +129,68 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
     df_feat['Has vmail plan'] = (df_feat['Voice mail plan'] == 'Yes').astype(int)
 
     # High usage flag (top 25% of total minutes)
-    df_feat['High usage'] = (df_feat['Total minutes'] > df_feat['Total minutes'].quantile(0.75)).astype(int)
+    if high_usage_threshold is None:
+        high_usage_threshold = df_feat['Total minutes'].quantile(0.75)
+    df_feat['High usage'] = (df_feat['Total minutes'] > high_usage_threshold).astype(int)
 
     # High customer service calls flag (3 or more calls)
     df_feat['High CS calls'] = (df_feat['Customer service calls'] >= 3).astype(int)
 
-    print(f"Features created. New shape: {df_feat.shape}")
+    if verbose:
+        print(f"Features created. New shape: {df_feat.shape}")
     return df_feat
+
+
+class FeatureEngineer(BaseEstimator, TransformerMixin):
+    """
+    Runs create_features inside a scikit-learn Pipeline.
+    The high-usage threshold is learned in fit, so it comes from training data only.
+    """
+
+    def fit(self, X: pd.DataFrame, y=None):
+        total_minutes = X[[
+            'Total day minutes', 'Total eve minutes',
+            'Total night minutes', 'Total intl minutes'
+        ]].sum(axis=1)
+        self.high_usage_threshold_ = total_minutes.quantile(0.75)
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        return create_features(X, high_usage_threshold=self.high_usage_threshold_, verbose=False)
+
+
+def build_preprocessor() -> Pipeline:
+    """
+    Build the preprocessing steps that turn raw customer columns into model inputs.
+
+    Returns:
+        Unfitted Pipeline of feature engineering, scaling and one-hot encoding
+    """
+    column_transformer = ColumnTransformer([
+        ('numerical', StandardScaler(), NUMERICAL_FEATURES + ENGINEERED_FEATURES),
+        ('categorical', OneHotEncoder(handle_unknown='ignore', sparse_output=False), CATEGORICAL_FEATURES)
+    ])
+
+    return Pipeline([
+        ('features', FeatureEngineer()),
+        ('columns', column_transformer)
+    ])
+
+
+def load_raw_features(file_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
+    """
+    Load the dataset as raw feature columns and a 0/1 target, ready for build_preprocessor.
+
+    Args:
+        file_path: Path to raw data file
+
+    Returns:
+        Tuple of (X, y)
+    """
+    df = clean_data(load_data(file_path))
+    X = df.drop(columns=TARGET)
+    y = (df[TARGET] == 'Yes').astype(int)
+    return X, y
 
 
 def encode_features(df: pd.DataFrame, drop_first: bool = True) -> pd.DataFrame:
@@ -146,10 +212,6 @@ def encode_features(df: pd.DataFrame, drop_first: bool = True) -> pd.DataFrame:
     # Add target to encoding if present
     if TARGET in df_encoded.columns:
         cols_to_encode.append(TARGET)
-
-    # Add tenure_group if it exists
-    if 'tenure_group' in df_encoded.columns:
-        cols_to_encode.append('tenure_group')
 
     # One-hot encoding
     df_encoded = pd.get_dummies(

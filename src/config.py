@@ -26,6 +26,8 @@ PROCESSED_DATA_PATH = PROCESSED_DATA_DIR / "processed_churn.csv"
 # Model file paths
 BEST_MODEL_PATH = MODEL_DIR / "best_model.pkl"
 SCALER_PATH = MODEL_DIR / "scaler.pkl"
+PIPELINE_PATH = MODEL_DIR / "churn_pipeline.pkl"
+METRICS_PATH = MODEL_DIR / "metrics.json"
 
 # Categorical features (based on your actual dataset)
 CATEGORICAL_FEATURES = [
@@ -54,6 +56,19 @@ NUMERICAL_FEATURES = [
     "Customer service calls"
 ]
 
+# Features added by create_features (all numeric)
+ENGINEERED_FEATURES = [
+    "Total minutes",
+    "Total calls",
+    "Total charge",
+    "Avg charge per minute",
+    "Avg calls per day",
+    "Has intl plan",
+    "Has vmail plan",
+    "High usage",
+    "High CS calls"
+]
+
 # Target variable
 TARGET = "Churn"
 
@@ -61,6 +76,11 @@ TARGET = "Churn"
 RANDOM_STATE = 42
 TEST_SIZE = 0.3
 CV_FOLDS = 5
+
+# Business assumptions for the impact estimate (not measured from data; adjust to real figures)
+AVG_CUSTOMER_VALUE = 1000       # Lifetime value of a retained customer ($)
+RETENTION_COST = 100            # Cost of one retention effort ($)
+RETENTION_SUCCESS_RATE = 0.3    # Share of contacted churners who accept the offer and stay
 
 # Create directories if they don't exist
 for directory in [DATA_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR, MODEL_DIR, REPORTS_DIR, FIGURES_DIR]:
