@@ -85,7 +85,7 @@ Gradient Boosting and XGBoost performed almost identically in cross-validation, 
 - **Campaign planner**: a break-even rule for who to contact, a profit curve, and a ranked call list you can download
 - **Model performance**: metrics, confusion matrix and threshold trade-off from the latest training run
 - **Data exploration**: churn rates by usage, plans and service calls
-- Light and dark mode, and a layout that works on phones
+- A consistent light theme and a layout that works on phones
 
 ### Code Quality
 - Modular Python package (`src/`) with configuration in one place

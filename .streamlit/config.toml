@@ -1,10 +1,7 @@
-# Separate light and dark sections keep Streamlit's automatic light/dark switching;
-# setting colours under [theme] directly would force a single light theme.
-[theme.light]
+# Always use the light theme, whatever the viewer's system setting
+[theme]
+base = "light"
 primaryColor = "#0d9488"
-
-[theme.dark]
-primaryColor = "#14b8a6"
 
 [client]
 toolbarMode = "minimal"
